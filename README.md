@@ -47,7 +47,8 @@ Both `pyproject.toml` and `uv.lock` will be updated; commit both.
 ├── .python-version     # Pinned Python version for uv
 ├── scripts/            # Experimental scripts
 │   ├── hello.py
-│   └── poll_github_events.py
+│   ├── poll_github_events.py
+│   └── poll_slack_messages.py
 └── README.md
 ```
 
@@ -99,3 +100,67 @@ remove it and accept the baseline behavior on the *next* run).
 
 **Output:** each new event is printed as one compact JSON object per
 line (NDJSON) to stdout, oldest-first within a poll.
+
+### `scripts/poll_slack_messages.py`
+
+Polls one or more Slack channels for new messages via
+`conversations.history`, using the message `ts` as a per-channel
+high-water mark. State (per-channel `last_ts`, `last_polled_at`,
+`last_status`) is persisted to a JSON file via atomic write.
+
+Slack does **not** expose ETag-style conditional requests, but the
+API filters server-side via `oldest=<last_ts>` so you only ever
+receive truly new messages.
+
+Configuration is entirely via environment variables:
+
+| Variable | Required | Default | Purpose |
+|---|---|---|---|
+| `SLACK_TOKEN` | ✓ | — | `xoxp-…` user token (recommended) or `xoxb-…` bot token. |
+| `SLACK_CHANNELS` | ✓ | — | Comma-separated channel IDs (e.g. `C0123456`). IDs, not names. |
+| `STATE_FILE` |  | `./slack_state.json` | Where to persist polling state. |
+| `POLL_INTERVAL_SECONDS` |  | `60` | Lower bound on sleep in `--loop` mode; `Retry-After` on 429 is also honored. |
+| `MAX_PAGES` |  | `1` | Pages of 200 messages per channel per poll. Raise if a channel routinely produces >200 messages per interval. |
+| `OUTPUT_FILE` |  | unset | If set, new messages are appended as NDJSON in addition to stdout. |
+| `LOG_LEVEL` |  | `INFO` | Standard Python log level. |
+
+**Required OAuth scopes** (on the Slack App; choose those matching the channel types you poll):
+
+- `channels:history` — public channels
+- `groups:history` — private channels
+- `im:history` — DMs
+- `mpim:history` — group DMs
+
+**Finding channel IDs:** in Slack, open the channel → click its
+name → scroll the "About" panel to the bottom; the ID (e.g.
+`C0123456`) is shown there.
+
+**One-shot:**
+
+```bash
+SLACK_TOKEN=xoxp-... \
+SLACK_CHANNELS="C0123456,C0234567" \
+uv run python scripts/poll_slack_messages.py
+```
+
+**Loop (daemon):**
+
+```bash
+SLACK_TOKEN=xoxp-... \
+SLACK_CHANNELS="C0123456" \
+uv run python scripts/poll_slack_messages.py --loop
+```
+
+**First-run behavior:** when a channel has no prior state, the
+script records the latest message `ts` as the baseline and emits
+**no** historical messages — same convention as the GitHub script.
+
+**Output:** each new message is printed as one compact JSON object
+per line (NDJSON) to stdout, oldest-first within a poll. Each
+record has an added top-level `channel` field (the channel ID)
+because Slack's message objects don't include it.
+
+**Edits and deletes** are *not* surfaced — `conversations.history`
+returns messages by their original `ts` and won't re-emit edited
+ones. For real-time edit/delete events, use the Slack Events API
+or Socket Mode (different architecture).

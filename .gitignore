@@ -42,4 +42,5 @@ htmlcov/
 # Runtime artifacts produced by scripts
 state.json
 state.*.json
+*_state.json
 *.ndjson
