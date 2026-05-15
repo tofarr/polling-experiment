@@ -17,6 +17,49 @@ uv sync
 
 This creates a `.venv/` and installs everything pinned in `uv.lock`.
 
+## Configuration
+
+Each script is configured entirely via environment variables (full
+tables under [Scripts](#scripts)). A `.env.template` file at the
+repository root lists every variable both scripts understand, with
+inline comments.
+
+To set up locally:
+
+```bash
+cp .env.template .env
+$EDITOR .env          # fill in tokens, repos, channels
+```
+
+`.env` is gitignored — `.env.template` is the only env file that
+should ever be committed. **Don't put real secrets in `.env.template`.**
+
+Pass `.env` to the scripts using uv's built-in `--env-file`:
+
+```bash
+uv run --env-file .env python scripts/poll_github_events.py
+uv run --env-file .env python scripts/poll_slack_messages.py
+```
+
+If you'd rather load `.env` into your current shell:
+
+```bash
+set -a; source .env; set +a
+uv run python scripts/poll_github_events.py
+```
+
+> **Note on `STATE_FILE`:** the variable name is shared between
+> scripts, so if you run both from one `.env` give each its own
+> file on the command line:
+> ```bash
+> uv run --env-file .env env STATE_FILE=state.json \
+>   python scripts/poll_github_events.py
+> uv run --env-file .env env STATE_FILE=slack_state.json \
+>   python scripts/poll_slack_messages.py
+> ```
+> Or leave `STATE_FILE` unset in `.env` and rely on each script's
+> default (`state.json` and `slack_state.json` respectively).
+
 ## Running scripts
 
 Experimental scripts live in [`scripts/`](./scripts). Run them with `uv run` so
@@ -42,6 +85,7 @@ Both `pyproject.toml` and `uv.lock` will be updated; commit both.
 
 ```
 .
+├── .env.template       # Copy to .env and fill in values
 ├── pyproject.toml      # Project metadata & dependencies
 ├── uv.lock             # Fully-resolved lockfile (commit this)
 ├── .python-version     # Pinned Python version for uv
