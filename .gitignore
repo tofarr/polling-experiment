@@ -38,3 +38,8 @@ htmlcov/
 .env
 .env.*
 !.env.example
+
+# Runtime artifacts produced by scripts
+state.json
+state.*.json
+*.ndjson
