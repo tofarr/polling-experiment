@@ -66,7 +66,7 @@ Experimental scripts live in [`scripts/`](./scripts). Run them with `uv run` so
 they execute inside the project's virtualenv:
 
 ```bash
-uv run python scripts/hello.py
+uv run python scripts/poll_github_events.py
 ```
 
 ## Adding dependencies
@@ -90,7 +90,6 @@ Both `pyproject.toml` and `uv.lock` will be updated; commit both.
 ├── uv.lock             # Fully-resolved lockfile (commit this)
 ├── .python-version     # Pinned Python version for uv
 ├── scripts/            # Experimental scripts
-│   ├── hello.py
 │   ├── poll_github_events.py
 │   └── poll_slack_messages.py
 └── README.md
